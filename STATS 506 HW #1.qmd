@@ -1,0 +1,274 @@
+---
+title: "STATS 506 HW #1"
+author: "Yiping Wang"
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+editor: visual
+---
+
+# **Problem 1**
+
+## a.
+
+```{r}
+abalone <- read.csv("C:/Users/Yiping Wang/Downloads/abalone.data", header=FALSE)
+names <- c("Sex", "Length", "Diameter", "Height", "Whole weight", "Shucked weight", "Viscera weight", "Shell weight", "Rings")
+colnames(abalone) <- names
+```
+
+## b.
+
+```{r}
+library(tidyverse)
+abalone %>%
+  count(Sex) 
+
+# Could also be done with function summarise or summarize
+# abalone %>%
+#   group_by(Sex) %>%
+#   summarise(n())
+```
+
+## c.
+
+### 1.
+
+```{r}
+cor(x = abalone$Rings, y = abalone[, c("Whole weight", "Shucked weight", "Viscera weight", "Shell weight")])
+```
+
+From the correlation measures, we can see that the "Shell weight" has the highest correlation with "Rings" from the abalone dataset, which is 0.627574.
+
+### 2.
+
+```{r}
+cor(x = abalone[abalone$Sex == "F",]$Rings, y = abalone[abalone$Sex == "F",]$`Shell weight`)
+cor(x = abalone[abalone$Sex == "I",]$Rings, y = abalone[abalone$Sex == "I",]$`Shell weight`)
+cor(x = abalone[abalone$Sex == "M",]$Rings, y = abalone[abalone$Sex == "M",]$`Shell weight`)
+```
+
+For Shell weight, the "infant" level from sex has the highest correlation.
+
+### 3.
+
+```{r}
+abalone[abalone$Rings == max(abalone$Rings), c("Whole weight", "Shucked weight", "Viscera weight", "Shell weight")]
+```
+
+### 4.
+
+```{r}
+sum(abalone$`Viscera weight` > abalone$`Shell weight`)/nrow(abalone) * 100
+```
+
+6.511851% abalones have a "Viscera weight" larger than their "Shell weight" from the abalone dataset.
+
+## d.
+
+```{r}
+correlation_table <- data.frame(matrix(nrow = length(unique(abalone$Sex)), ncol = sum(str_detect(names(abalone), "weight"))))
+
+for (i in 1:nrow(correlation_table)){
+  correlation_table[i,] <- cor(x = abalone[abalone$Sex == unique(abalone$Sex)[i],]$Rings, y = abalone[abalone$Sex == unique(abalone$Sex)[i],][, c("Whole weight", "Shucked weight", "Viscera weight", "Shell weight")])
+}
+
+rownames(correlation_table) <- unique(abalone$Sex)
+colnames(correlation_table) <- c("Whole weight", "Shucked weight", "Viscera weight", "Shell weight")
+print(correlation_table)
+```
+
+## e.
+
+```{r}
+fit <- aov(Rings ~ Sex, data = abalone)
+summary(fit)
+```
+
+Since the p-value is \<2e-16 which is significantly smaller than $\alpha$ \< 0.5, there is enough evidence to reject the NULL hypothesis and claim that there is a significant correlation between the number of rings and the sex of the observed population. In other words, there is statistical significant difference of the number of rings across three sexes.
+
+# Problem 2
+
+## a.
+
+```{r}
+food_expenditure <- read.csv("C:/Users/Yiping Wang/Downloads/food_expenditure.csv")
+```
+
+## b.
+
+```{r}
+names <- c("ID", "age", "household", "state", "currency", "total", "grocery", "dine_out", "miscellaneous", "dine_out_times", "alcohol", "food_assistance")
+colnames(food_expenditure) <- names
+```
+
+## c.
+
+```{r}
+nrow(food_expenditure)
+food_expenditure <- food_expenditure[food_expenditure$currency == "USD",]
+nrow(food_expenditure)
+```
+
+## d.
+
+```{r}
+food_expenditure <- food_expenditure[food_expenditure$age >= 18,] # Excluded all minors under the age of 18
+unique(food_expenditure$age)
+food_expenditure <- food_expenditure[!is.na(food_expenditure$age),] # Removing NA values
+
+## Noticing that there is an age of 150, which is not reasonable in my perspective of human life expectancy, we might wanna remove that, too.
+food_expenditure <- food_expenditure[food_expenditure$age != 150,]
+```
+
+## e.
+
+```{r}
+unique(food_expenditure$state)
+food_expenditure <- food_expenditure[food_expenditure$state != "",] # Removing rows with empty values in state."XX" probably indicates places outside of the United States from what I searched and is not an error, so we could keep it.
+```
+
+## f.
+
+```{r}
+## Total
+unique(food_expenditure$total) # 0 might be considered reasonable in this case, but we still have to look at each row. Empty or negative values should be invalid reports. Also the ~ value is probably an approximation which could be inaccurate, so we could either delete the row or revise the value to be the approximated number(In this case, we are just going to delete it).
+food_expenditure <- food_expenditure[!str_detect(food_expenditure$total, "-"),]
+food_expenditure <- food_expenditure[!str_detect(food_expenditure$total, "~"),]
+food_expenditure <- food_expenditure[food_expenditure$total != "", ]
+food_expenditure[food_expenditure$total == 0, ] # The row left with 0 total expenditure had positive values in the grocery expenditure and dining out expenditure and NA values in miscellaneous, which is not properly reported in this case. Therefore we should drop this row.
+food_expenditure <- food_expenditure[food_expenditure$total != 0,]
+
+## Grocery
+unique(food_expenditure$grocery) # There is an NA value in the data, we want to remove that. We also wanna remove the negative values in this column.
+food_expenditure <- food_expenditure[!is.na(food_expenditure$grocery),]
+food_expenditure <- food_expenditure[!str_detect(food_expenditure$grocery, "-"),]
+
+## Dine Out
+unique(food_expenditure$dine_out) # There is an NA value in the data, we want to remove that.
+food_expenditure <- food_expenditure[!is.na(food_expenditure$dine_out),]
+
+## Miscellaneous
+unique(food_expenditure$miscellaneous) # There is an NA value in the data, we want to remove that. We also wanna remove the negative values in this column.
+food_expenditure <- food_expenditure[!is.na(food_expenditure$miscellaneous),]
+food_expenditure <- food_expenditure[!str_detect(food_expenditure$miscellaneous, "-"),]
+
+# We also wanna check if the total is not less than all other three added up. (For some reason none of the rows have the total equivalent to the sum of all other three costs, and we probably do not wanna delete every single row, so we should probably keep the ones that are still reasonable)
+
+for (i in which(names(food_expenditure) == "total"):(which(names(food_expenditure) == "total") + 3)){
+  food_expenditure[, i] <- as.numeric(food_expenditure[, i])
+}
+
+# For checking if any rows had their total equivalent to the sum of all three other costs. (I also attempted multiplying dining out cost with dining out times, and still none of the results are equivalent)
+food_expenditure[food_expenditure$total == food_expenditure$grocery + food_expenditure$dine_out + food_expenditure$miscellaneous,]
+
+# Removing the rows with total expenditure less than other three combined.
+food_expenditure <- food_expenditure[!(food_expenditure$total < food_expenditure$grocery + food_expenditure$dine_out + food_expenditure$miscellaneous),]
+```
+
+## g.
+
+```{r}
+unique(food_expenditure$dine_out_times) # I think we should check on rows with 0, 10, 15, 20, and 30. We can manually observe the rest after we finish filtering the possible mistakes.
+
+## 0
+food_expenditure[food_expenditure$dine_out_times == 0, ] # We can see that even the dinining out times are zeroes for these three rows, the dining out cost is still higher than zero, so we should remove all three rows.
+food_expenditure <- food_expenditure[food_expenditure$dine_out_times != 0, ]
+
+## 10
+food_expenditure[food_expenditure$dine_out_times == 10, ] # I think the row with 21.13 and 42.75 dining out cost may have mistaken the average cost of the 10 dining out experience instead of the total cost regarding the difference between the total and the other two costs. Therefore, we might wanna remove those two rows. We can use ID here to remove the rows.
+typeof(food_expenditure$ID)
+food_expenditure <- food_expenditure[!(food_expenditure$ID) %in% c(58, 187), ]
+
+## 15
+food_expenditure[food_expenditure$dine_out_times == 15, ] # Similar issues arises for all but the one with dining out cost 76.16. However, 76.16 is still not a reasonable total for 15 dining out experiences. Therefore, we might wanna remove every row with 15 dining out times over last week.
+food_expenditure <- food_expenditure[food_expenditure$dine_out_times != 15, ]
+
+## 20
+food_expenditure[food_expenditure$dine_out_times == 20, ] # Similar issue with the prior.
+food_expenditure <- food_expenditure[food_expenditure$dine_out_times != 20, ]
+
+## 30
+food_expenditure[food_expenditure$dine_out_times == 30, ] # 185.93 total dining out cost ranging over 30 dining out experiences is not quite reasonable, plus that it is almost impossible to have 30 dining out experiences in one week with just one other people in the household. Therefore, we wanna remove this row as well.
+food_expenditure <- food_expenditure[food_expenditure$dine_out_times != 30, ]
+
+## Manual Observation on the rest. There are a couple of rows with 7, 8, or 9 dining out times, in which the number of dining out times is not quite reasonably aligning with the dining out cost, so we might wanna remove those. Here I am just going to use IDs to eliminate those rows.
+
+food_expenditure <- food_expenditure[!(food_expenditure$ID) %in% c(77, 80, 141, 146, 164, 173), ]
+```
+
+## h.
+
+```{r}
+nrow(food_expenditure)
+```
+
+I had 43 observation remaining. Something more could be done comparing the age and the household, the total and the household, etc.
+
+# Problem 3
+
+## a.
+
+```{r}
+#'Function to calculate the next number in the Collatz Sequence
+#'
+#' @param n a positive integer
+#' @return The next number in the Collatz Sequence for `n`
+nextCollatz <- function(n){
+  if (n %% 1 == 0 & n > 0){
+    if (n %% 2 == 0){
+      return(n/2)
+    } else{
+      return(3 * n + 1)
+    }
+  } else {
+    return("Invalid Input: Not a Positive Integer!")
+  }
+}
+nextCollatz(5)
+nextCollatz(16)
+nextCollatz(0)
+nextCollatz(-1)
+nextCollatz(-4)
+nextCollatz(1.1)
+nextCollatz(-1.1)
+nextCollatz(2)
+nextCollatz(3)
+```
+
+## b.
+
+```{r}
+#'Function to calculate Collatz Sequence
+#'
+#' @param k a positive integer
+#' @return The Collatz Sequence for `k`
+collatzSequence <- function(k){
+  result <- c(k)
+  while(result[length(result)] != 1){
+    result <- c(result, nextCollatz(result[length(result)]))
+  }
+  return(result)
+}
+collatzSequence(5)
+collatzSequence(19)
+```
+
+## c.
+
+```{r}
+# including 100 and 500
+sequence_length <- vector(mode = "numeric", length = length(100:500))
+names(sequence_length) <- 100:500
+for (i in 100:500){
+  sequence_length[i-99] <- length(collatzSequence(i))
+}
+
+sequence_length[sequence_length == min(sequence_length)]
+sequence_length[sequence_length == max(sequence_length)]
+```
+
+The shortest Collatz sequence starting with values between 100 and 500 is 128 and the length is 8 including the starting value. The longest Collatz sequence starting with values between 100 and 500 is 327 and the length is 144 including the starting value.
